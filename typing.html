@@ -38,6 +38,8 @@
             font-size: 20px;
             line-height: 1.5;
             scroll-behavior: smooth;
+            outline: none;
+            cursor: text;
         }
         
         .correct { 
@@ -72,16 +74,7 @@
         }
         
         #typing-input {
-            width: 100%;
-            height: 120px;
-            padding: 15px;
-            border: 2px solid #dee2e6;
-            border-radius: 10px;
-            font-size: 16px;
-            font-family: 'Courier New', monospace;
-            resize: vertical;
-            outline: none;
-            transition: border-color 0.3s;
+            display: none;
         }
         
         #typing-input:focus {
@@ -183,14 +176,7 @@
             style="width: 100%; height: 60px; padding: 10px; border: 2px solid #007bff; border-radius: 10px; font-size: 16px; margin-bottom: 15px;"
         ></textarea>
         
-        <div id="reference-display" class="reference-container"></div>
-        
-        <textarea 
-            id="typing-input" 
-            placeholder="Start typing here... The reference text will auto-scroll as you type!"
-            autocomplete="off"
-            spellcheck="false"
-        ></textarea>
+        <div id="reference-display" class="reference-container" tabindex="0"></div>
         
         <div class="stats">
             <div class="stat-box">
@@ -226,7 +212,6 @@
         let typedText = "";
         
         const referenceInput = document.getElementById('reference-input');
-        const typingInput = document.getElementById('typing-input');
         const referenceDisplay = document.getElementById('reference-display');
         const timeSpan = document.getElementById('time-stat');
         const accuracySpan = document.getElementById('accuracy-stat');
@@ -241,20 +226,30 @@
             resetPractice();
         });
         
+        // Handle typing directly on reference display
+        referenceDisplay.addEventListener('keydown', function(e) {
+            // Prevent default for most keys except special ones
+            if (!e.ctrlKey && !e.altKey && e.key.length === 1) {
+                e.preventDefault();
+                
+                // Add the typed character
+                typedText += e.key;
+                
+                // Start timer on first character
+                if (typedText.length === 1 && startTime === null) {
+                    startTime = Date.now();
+                }
+                
+                updateDisplay();
+            } else if (e.key === 'Backspace') {
+                e.preventDefault();
+                typedText = typedText.slice(0, -1);
+                updateDisplay();
+            }
+        });
+        
         // Initialize display
         updateDisplay();
-        
-        // Real-time input detection
-        typingInput.addEventListener('input', function(e) {
-            typedText = e.target.value;
-            
-            // Start timer on first character
-            if (typedText.length === 1 && startTime === null) {
-                startTime = Date.now();
-            }
-            
-            updateDisplay();
-        });
         
         function updateDisplay() {
             // Update reference text with colors
@@ -281,27 +276,30 @@
             
             referenceDisplay.innerHTML = coloredText;
             
-            // Auto-scroll to current position (slower scroll)
+            // Auto-scroll to current position
             const currentSpan = referenceDisplay.querySelector('.current');
             if (currentSpan && referenceText.length > 0) {
                 const containerWidth = referenceDisplay.clientWidth;
                 const spanLeft = currentSpan.offsetLeft;
                 
                 // Only scroll when current position is getting close to right edge
-                const scrollThreshold = containerWidth * 0.9; // Start scrolling when 70% across
+                const scrollThreshold = containerWidth * 0.7; // Start scrolling when 70% across
                 const currentScrollLeft = referenceDisplay.scrollLeft;
                 const relativePosition = spanLeft - currentScrollLeft;
                 
                 if (relativePosition > scrollThreshold) {
                     // Scroll by smaller increments to keep text visible
-                    referenceDisplay.scrollLeft = currentScrollLeft + (containerWidth * 0.2);
+                    referenceDisplay.scrollLeft = currentScrollLeft + (containerWidth * 0.3);
                 }
             }
-
+            
             // Calculate stats
             if (startTime) {
                 const elapsedTime = (Date.now() - startTime) / 1000;
-                const accuracy = referenceText.length > 0 ? (correctChars / referenceText.length) * 100 : 100;
+                
+                // Calculate accuracy based only on characters typed so far
+                const accuracy = typedText.length > 0 ? (correctChars / typedText.length) * 100 : 100;
+                
                 const wordsTyped = typedText.trim().split(/\s+/).length;
                 const wpm = elapsedTime > 0 ? (wordsTyped / elapsedTime) * 60 : 0;
                 const progress = Math.min(typedText.length / referenceText.length, 1) * 100;
@@ -333,20 +331,27 @@
         function resetPractice() {
             startTime = null;
             typedText = '';
-            typingInput.value = '';
+            referenceDisplay.scrollLeft = 0;
             completionMessage.style.display = 'none';
             updateDisplay();
-            typingInput.focus();
+            referenceDisplay.focus();
         }
         
         // Auto-focus on load
         window.addEventListener('load', () => {
-            typingInput.focus();
+            referenceDisplay.focus();
+        });
+        
+        // Handle window resize to fix scroll positions
+        window.addEventListener('resize', function() {
+            setTimeout(() => {
+                updateDisplay();
+            }, 100);
         });
         
         // Update stats every 100ms for smooth real-time display
         setInterval(() => {
-            if (startTime && typedText.length > 0) {
+            if (startTime && typedText.length > 0 && typedText.length < referenceText.length) {
                 updateDisplay();
             }
         }, 100);
