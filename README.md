@@ -17,6 +17,7 @@ Use the tool [Simple Typing](https://mrzaizai2k.github.io/typing.html)
 - Customizable reference text input.
 - Auto-scrolls to current typing position.
 - Reset button to restart practice.
+- Auto generate text in [vi_news](https://vnexpress.net/)/[en_news](https://e.vnexpress.net/)
 
 ## Demo
 ![Demo Image](docs/demo.png)
