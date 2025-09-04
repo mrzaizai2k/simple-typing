@@ -11,13 +11,15 @@ Use the tool [Simple Typing](https://mrzaizai2k.github.io/typing.html)
 
 
 ## Features
-- Tracks time (seconds), accuracy (%), words per minute (WPM), and progress.
-- Highlights correct, incorrect, and current characters with color coding.
-- Real-time progress bar and completion message.
+- Simple HTML file, runs on all browsers.
+- Auto generate text in [vi_news](https://vnexpress.net/)/[en_news](https://e.vnexpress.net/)
 - Customizable reference text input.
 - Auto-scrolls to current typing position.
+- Tracks time (seconds), accuracy (%), words per minute (WPM), Correct WPM, Word Accuracy and progress.
+- Highlights correct, incorrect, and current characters with color coding.
+- Real-time progress bar and completion message.
 - Reset button to restart practice.
-- Auto generate text in [vi_news](https://vnexpress.net/)/[en_news](https://e.vnexpress.net/)
+- Dark mode.
 
 ## Demo
 ![Demo Image](docs/demo.png)
