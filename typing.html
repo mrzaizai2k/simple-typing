@@ -144,6 +144,7 @@
             min-width: 120px;
             margin: 5px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            position: relative;
         }
         
         body.dark-mode .stat-box {
@@ -160,7 +161,73 @@
             font-size: 12px;
             opacity: 0.9;
             margin-top: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
         }
+        
+        /* CHANGED: Added info icon and tooltip styles */
+        .info-icon {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: help;
+            position: relative;
+        }
+        
+        .tooltip {
+            position: absolute;
+            bottom: 120%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            pointer-events: none;
+            max-width: 200px;
+            white-space: normal;
+            text-align: left;
+            line-height: 1.3;
+        }
+        
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: rgba(0,0,0,0.9);
+        }
+        
+        .info-icon:hover .tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        body.dark-mode .tooltip {
+            background: rgba(255,255,255,0.95);
+            color: #333;
+        }
+        
+        body.dark-mode .tooltip::after {
+            border-top-color: rgba(255,255,255,0.95);
+        }
+        /* END CHANGED */
         
         .progress-bar {
             background-color: #e9ecef;
@@ -380,24 +447,64 @@
         
         <div id="reference-display" class="reference-container" tabindex="0"></div>
         
+        <!-- CHANGED: Updated stats section with new metrics and info icons -->
         <div class="stats">
             <div class="stat-box">
                 <span id="time-stat" class="stat-value">0.0</span>
-                <div class="stat-label">⏱ TIME (sec)</div>
+                <div class="stat-label">
+                    ⏱ TIME (sec)
+                    <span class="info-icon">i
+                        <div class="tooltip">Total time elapsed since you started typing</div>
+                    </span>
+                </div>
             </div>
             <div class="stat-box">
                 <span id="accuracy-stat" class="stat-value">100</span>
-                <div class="stat-label">✅ ACCURACY (%)</div>
+                <div class="stat-label">
+                    ✅ CHAR ACCURACY (%)
+                    <span class="info-icon">i
+                        <div class="tooltip">Percentage of characters typed correctly (correct chars ÷ total chars typed)</div>
+                    </span>
+                </div>
+            </div>
+            <div class="stat-box">
+                <span id="word-accuracy-stat" class="stat-value">100</span>
+                <div class="stat-label">
+                    📝 WORD ACCURACY (%)
+                    <span class="info-icon">i
+                        <div class="tooltip">Percentage of complete words typed correctly (correct words ÷ total words typed)</div>
+                    </span>
+                </div>
             </div>
             <div class="stat-box">
                 <span id="wpm-stat" class="stat-value">0</span>
-                <div class="stat-label">⌨️ WPM</div>
+                <div class="stat-label">
+                    ⌨️ TOTAL WPM
+                    <span class="info-icon">i
+                        <div class="tooltip">Words per minute based on all typed words (including incorrect ones)</div>
+                    </span>
+                </div>
+            </div>
+            <div class="stat-box">
+                <span id="correct-wpm-stat" class="stat-value">0</span>
+                <div class="stat-label">
+                    🎯 CORRECT WPM
+                    <span class="info-icon">i
+                        <div class="tooltip">Words per minute based only on correctly typed words</div>
+                    </span>
+                </div>
             </div>
             <div class="stat-box">
                 <span id="progress-stat" class="stat-value">0/0</span>
-                <div class="stat-label">📊 PROGRESS</div>
+                <div class="stat-label">
+                    📊 PROGRESS
+                    <span class="info-icon">i
+                        <div class="tooltip">Characters typed vs total characters in the text</div>
+                    </span>
+                </div>
             </div>
         </div>
+        <!-- END CHANGED -->
         
         <div class="progress-bar">
             <div id="progress-fill" class="progress-fill" style="width: 0%">0%</div>
@@ -424,6 +531,10 @@
         const progressSpan = document.getElementById('progress-stat');
         const progressFill = document.getElementById('progress-fill');
         const completionMessage = document.getElementById('completion-message');
+        // CHANGED: Added references to new stat elements
+        const wordAccuracySpan = document.getElementById('word-accuracy-stat');
+        const correctWpmSpan = document.getElementById('correct-wpm-stat');
+        // END CHANGED
         
         // Handle reference text input
         referenceInput.addEventListener('input', function(e) {
@@ -498,32 +609,109 @@
                 }
             }
             
-            // Calculate stats
+            // CHANGED: Enhanced stats calculation with new metrics
             if (startTime) {
                 const elapsedTime = (Date.now() - startTime) / 1000;
                 
-                // Calculate accuracy based only on characters typed so far
-                const accuracy = typedText.length > 0 ? (correctChars / typedText.length) * 100 : 100;
+                // Character accuracy (existing metric)
+                const charAccuracy = typedText.length > 0 ? (correctChars / typedText.length) * 100 : 100;
                 
-                const wordsTyped = typedText.trim().split(/\s+/).length;
-                const wpm = elapsedTime > 0 ? (wordsTyped / elapsedTime) * 60 : 0;
+                // Word-based calculations
+                const referenceWords = referenceText.trim().split(/\s+/);
+                let correctWords = 0;
+                let totalWordsAttempted = 0;
+                
+                // Track current position in reference text
+                let refIndex = 0;
+                let currentWordStart = 0;
+                
+                // Go through reference words and see how many we've attempted/completed
+                for (let wordIdx = 0; wordIdx < referenceWords.length; wordIdx++) {
+                    const refWord = referenceWords[wordIdx];
+                    const wordEnd = refIndex + refWord.length;
+                    
+                    // Check if we've typed enough characters to reach this word
+                    if (typedText.length > refIndex) {
+                        totalWordsAttempted++;
+                        
+                        // Check if we've typed this entire word correctly
+                        let wordCorrect = true;
+                        
+                        // If we've typed past this word or exactly to its end
+                        if (typedText.length >= wordEnd) {
+                            // Check each character in this word
+                            for (let i = 0; i < refWord.length; i++) {
+                                if (refIndex + i >= typedText.length || typedText[refIndex + i] !== refWord[i]) {
+                                    wordCorrect = false;
+                                    break;
+                                }
+                            }
+                            
+                            // Also check that the next character (if exists) is a space or we're at the end
+                            if (wordCorrect && typedText.length > wordEnd) {
+                                if (wordIdx < referenceWords.length - 1 && typedText[wordEnd] !== ' ') {
+                                    wordCorrect = false;
+                                }
+                            }
+                            
+                            if (wordCorrect) {
+                                correctWords++;
+                            }
+                        } else {
+                            // We're still typing this word, check if what we've typed so far is correct
+                            wordCorrect = true;
+                            const typedPartLength = Math.min(typedText.length - refIndex, refWord.length);
+                            
+                            for (let i = 0; i < typedPartLength; i++) {
+                                if (typedText[refIndex + i] !== refWord[i]) {
+                                    wordCorrect = false;
+                                    break;
+                                }
+                            }
+                            
+                            // For partial words, only count as correct if we're still typing correctly
+                            // But don't add to correctWords until the word is complete
+                            if (!wordCorrect) {
+                                // Word is being typed incorrectly, count it but don't increment correctWords
+                            }
+                            // If typing correctly but incomplete, don't count as correct yet
+                        }
+                    }
+                    
+                    // Move reference index to next word (including space)
+                    refIndex = wordEnd;
+                    if (wordIdx < referenceWords.length - 1) {
+                        refIndex++; // Skip space
+                    }
+                }
+                
+                const wordAccuracy = totalWordsAttempted > 0 ? (correctWords / totalWordsAttempted) * 100 : 100;
+                
+                // Total WPM (based on words attempted)
+                const totalWpm = elapsedTime > 0 ? (totalWordsAttempted / elapsedTime) * 60 : 0;
+                
+                // Correct WPM (only correct words)
+                const correctWpm = elapsedTime > 0 ? (correctWords / elapsedTime) * 60 : 0;
+                
                 const progress = Math.min(typedText.length / referenceText.length, 1) * 100;
                 
                 // Update display
                 timeSpan.textContent = elapsedTime.toFixed(1);
-                accuracySpan.textContent = accuracy.toFixed(1);
-                wpmSpan.textContent = wpm.toFixed(1);
+                accuracySpan.textContent = charAccuracy.toFixed(1);
+                wordAccuracySpan.textContent = wordAccuracy.toFixed(1);
+                wpmSpan.textContent = totalWpm.toFixed(1);
+                correctWpmSpan.textContent = correctWpm.toFixed(1);
                 progressSpan.textContent = `${typedText.length}/${referenceText.length}`;
                 progressFill.style.width = progress + '%';
                 progressFill.textContent = progress.toFixed(1) + '%';
                 
                 // Check completion
                 if (typedText.length >= referenceText.length) {
-                    if (accuracy === 100) {
+                    if (charAccuracy === 100) {
                         completionMessage.innerHTML = '🎉 Perfect! You completed with 100% accuracy!';
                         completionMessage.style.background = 'linear-gradient(135deg, #28a745, #20c997)';
                     } else {
-                        completionMessage.innerHTML = `✅ Completed! Final accuracy: ${accuracy.toFixed(1)}%`;
+                        completionMessage.innerHTML = `✅ Completed! Final accuracy: ${charAccuracy.toFixed(1)}%`;
                         completionMessage.style.background = 'linear-gradient(135deg, #17a2b8, #138496)';
                     }
                     completionMessage.style.display = 'block';
@@ -531,6 +719,7 @@
                     completionMessage.style.display = 'none';
                 }
             }
+            // END CHANGED
         }
         
         function resetPractice() {
